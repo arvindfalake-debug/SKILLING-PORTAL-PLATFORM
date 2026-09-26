@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Policy Maker Login — Skilling Outcomes Portal</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="../index.html" style="color:#fff"><div class="mark">SK</div> Skilling Outcomes Portal</a>
+  <nav><a href="../index.html">Other logins</a></nav>
+</div>
+
+<div class="wrap narrow">
+  <form id="loginForm" class="card">
+    <div class="field">
+      <label for="id">Policy Maker ID</label>
+      <input id="id" required placeholder="e.g. GOV-POLICY-01" style="text-transform:uppercase" />
+    </div>
+    <div class="field">
+      <label for="pass">Password</label>
+      <input id="pass" type="password" required />
+    </div>
+    <p id="err" class="hint" style="color:var(--red);display:none">Policy Maker ID or password is incorrect.</p>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary">Log in</button>
+    </div>
+    <p class="hint" style="margin-top:10px"><a href="#" id="forgotLink">Forgot password?</a></p>
+  </form>
+
+  <form id="resetForm" class="card" style="display:none">
+    <div class="field">
+      <label for="r_id">Policy Maker ID</label>
+      <input id="r_id" required placeholder="e.g. GOV-POLICY-01" style="text-transform:uppercase" />
+    </div>
+    <div class="field">
+      <label for="r_otp">Mobile OTP</label>
+      <input id="r_otp" required placeholder="Enter OTP (000000 for demo)" inputmode="numeric" maxlength="6" />
+    </div>
+    <div class="field">
+      <label for="r_new">New password</label>
+      <input id="r_new" type="password" required placeholder="At least 6 characters" />
+    </div>
+    <p id="r_err" class="hint" style="color:var(--red);display:none"></p>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary">Reset password &amp; log in</button>
+      <button type="button" class="btn btn-outline" id="cancelReset">Back to login</button>
+    </div>
+  </form>
+</div>
+
+<footer class="site">Prototype only.</footer>
+
+<script src="../assets/app.js"></script>
+<script>
+  document.getElementById('loginForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const id = document.getElementById('id').value.trim().toUpperCase();
+    const pass = document.getElementById('pass').value;
+    if (id !== POLICY_MAKER_ACCOUNT.loginId || pass !== getAccountPassword(POLICY_MAKER_ACCOUNT.loginId, POLICY_MAKER_ACCOUNT.defaultPassword)) {
+      document.getElementById('err').style.display = 'block';
+      return;
+    }
+    localStorage.setItem(PM_SESSION_KEY, "1");
+    window.location.href = 'dashboard.html';
+  });
+
+  const loginForm = document.getElementById('loginForm');
+  const resetForm = document.getElementById('resetForm');
+  document.getElementById('forgotLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    loginForm.style.display = 'none';
+    resetForm.style.display = 'block';
+  });
+  document.getElementById('cancelReset').addEventListener('click', () => {
+    resetForm.style.display = 'none';
+    loginForm.style.display = 'block';
+  });
+
+  resetForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const id = document.getElementById('r_id').value.trim().toUpperCase();
+    const otp = document.getElementById('r_otp').value.trim();
+    const newPass = document.getElementById('r_new').value;
+    const err = document.getElementById('r_err');
+    if (id !== POLICY_MAKER_ACCOUNT.loginId) { err.textContent = 'No policy-maker account found with that ID.'; err.style.display = 'block'; return; }
+    if (otp !== DEMO_OTP) { err.textContent = 'Incorrect OTP — this demo always accepts 000000.'; err.style.display = 'block'; return; }
+    if (newPass.length < 6) { err.textContent = 'Password should be at least 6 characters.'; err.style.display = 'block'; return; }
+
+    setAccountPassword(POLICY_MAKER_ACCOUNT.loginId, newPass);
+    localStorage.setItem(PM_SESSION_KEY, "1");
+    window.location.href = 'dashboard.html';
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Funding &amp; EPFO Bridge — Policy Maker</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="../index.html" style="color:#fff"><div class="mark">SK</div> Skilling Outcomes Portal</a>
+  <nav><a href="dashboard.html">Dashboard</a><a href="fraud-detection.html">Fraud Watch</a><a href="#" id="logoutLink">Logout</a></nav>
+</div>
+
+<div class="wrap">
+  <div class="eyebrow">Government · Placement Transparency</div>
+  <h1>Funding &amp; EPFO bridge</h1>
+  <p class="lead" style="max-width:680px">
+    Instead of paying training centers on the strength of a self-submitted placement
+    report, the idea: hold each candidate's funding milestone in escrow, and release
+    it only once that candidate's employment shows up independently — for example a
+    new EPF (provident fund) contribution from a verified employer. This page
+    simulates that check and the resulting fund release; it does not call a real
+    EPFO/UAN system.
+  </p>
+
+  <div class="notice amber" style="max-width:680px">
+    Demo only — amounts, escrow rules and the "EPFO check" below are illustrative
+    placeholders, not a real EPFO/UAN integration or an actual escrow account.
+  </div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3>Provider funding summary</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Training center</th><th>Candidates</th><th>Verified placements</th><th>Escrow locked (₹)</th><th>Released (₹)</th><th>Pending (₹)</th></tr>
+        </thead>
+        <tbody id="providerTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3>Simulate an EPFO check → smart-contract release</h3>
+    <p class="hint" style="margin-top:-4px">
+      Pick a candidate who has self-reported a placement but isn't verified yet.
+      "Running" the check simulates finding a new EPF deposit from their employer,
+      which auto-releases that candidate's milestone.
+    </p>
+    <div class="field">
+      <label for="candSelect">Candidate</label>
+      <select id="candSelect"></select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-amber btn-sm" id="runCheckBtn" type="button">Run EPFO Check (Simulated)</button>
+    </div>
+    <p id="checkStatus" class="hint"></p>
+  </div>
+
+  <div class="card">
+    <h3>Transaction ledger</h3>
+    <p class="hint" style="margin-top:-4px">Every simulated smart-contract release, most recent first.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date/time</th><th>Trainee ID</th><th>Training center</th><th>Amount (₹)</th><th>Trigger</th></tr></thead>
+        <tbody id="ledgerTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<footer class="site">Prototype only — no real EPFO/UAN API or escrow account is involved.</footer>
+
+<script src="../assets/app.js"></script>
+<script>
+  if (!localStorage.getItem(PM_SESSION_KEY)) window.location.href = 'login.html';
+  document.getElementById('logoutLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.removeItem(PM_SESSION_KEY);
+    window.location.href = '../index.html';
+  });
+
+  function renderStats(list) {
+    const funding = fundingByProvider(list);
+    const totalEscrow = funding.reduce((a, f) => a + f.escrow, 0);
+    const totalReleased = funding.reduce((a, f) => a + f.released, 0);
+    document.getElementById('statGrid').innerHTML = `
+      <div class="stat"><div class="label">Total escrow locked</div><div class="value">₹${totalEscrow.toLocaleString('en-IN')}</div><div class="sub">across all enrolled candidates</div></div>
+      <div class="stat"><div class="label">Released to providers</div><div class="value">₹${totalReleased.toLocaleString('en-IN')}</div><div class="sub">on verified placements only</div></div>
+      <div class="stat"><div class="label">Pending release</div><div class="value">₹${(totalEscrow - totalReleased).toLocaleString('en-IN')}</div><div class="sub">awaiting a verified outcome</div></div>
+    `;
+  }
+
+  function renderProviderTable(list) {
+    const funding = fundingByProvider(list);
+    document.getElementById('providerTbody').innerHTML = funding.map(f => `
+      <tr>
+        <td><b>${f.name}</b></td>
+        <td>${f.total}</td>
+        <td>${f.verifiedPlaced}</td>
+        <td>${f.escrow.toLocaleString('en-IN')}</td>
+        <td>${f.released.toLocaleString('en-IN')}</td>
+        <td>${f.pending.toLocaleString('en-IN')}</td>
+      </tr>`).join('');
+  }
+
+  function renderCandidateSelect(list) {
+    const sel = document.getElementById('candSelect');
+    sel.innerHTML = '';
+    const eligible = list.filter(c => isPlaced(c.employmentStatus) && !c.employmentVerified);
+    if (!eligible.length) {
+      sel.add(new Option('No pending placements to check right now', ''));
+      document.getElementById('runCheckBtn').disabled = true;
+      return;
+    }
+    document.getElementById('runCheckBtn').disabled = false;
+    eligible.forEach(c => sel.add(new Option(`${c.id} — ${c.name} (${centerName(c.centerCode)})`, c.id)));
+  }
+
+  function renderLedger() {
+    const tx = getTransactions();
+    document.getElementById('ledgerTbody').innerHTML = tx.length
+      ? tx.map(t => `
+        <tr>
+          <td>${new Date(t.ts).toLocaleString('en-IN')}</td>
+          <td><b>${t.candidateId}</b></td>
+          <td>${t.centerName}</td>
+          <td>₹${t.amount.toLocaleString('en-IN')}</td>
+          <td>${t.trigger}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="5" class="muted small">No releases yet.</td></tr>`;
+  }
+
+  function refresh() {
+    const list = getCandidates();
+    renderStats(list);
+    renderProviderTable(list);
+    renderCandidateSelect(list);
+    renderLedger();
+  }
+
+  document.getElementById('runCheckBtn').addEventListener('click', () => {
+    const id = document.getElementById('candSelect').value;
+    if (!id) return;
+    const btn = document.getElementById('runCheckBtn');
+    const status = document.getElementById('checkStatus');
+    btn.disabled = true;
+    status.style.color = 'var(--muted)';
+    status.textContent = 'Querying EPFO database for a new employer contribution…';
+
+    setTimeout(() => {
+      const c = findCandidate(id);
+      if (!c) { btn.disabled = false; return; }
+      updateCandidate(id, { employmentVerified: true, lastFollowup: new Date().toISOString().slice(0,10) });
+      addTransaction({
+        candidateId: id,
+        centerCode: c.centerCode,
+        centerName: centerName(c.centerCode),
+        amount: RELEASE_PER_PLACEMENT,
+        trigger: 'EPF deposit detected (simulated)',
+      });
+      status.style.color = 'var(--green)';
+      status.textContent = `EPF deposit found for ${c.name} at ${c.employer || 'employer'} — smart contract released ₹${RELEASE_PER_PLACEMENT.toLocaleString('en-IN')} to ${centerName(c.centerCode)}.`;
+      btn.disabled = false;
+      refresh();
+    }, 900);
+  });
+
+  refresh();
+</script>
+</body>
+</html>

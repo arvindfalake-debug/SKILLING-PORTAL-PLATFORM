@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Register Candidate — Training Center</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="../index.html" style="color:#fff"><div class="mark">SK</div> Skilling Outcomes Portal</a>
+  <nav><a href="dashboard.html">Dashboard</a><a href="#" id="logoutLink">Logout</a></nav>
+</div>
+
+<div class="wrap narrow">
+
+  <div id="formView">
+    <div class="eyebrow">Training Center · New Candidate</div>
+    <h1>Register a candidate</h1>
+    <p class="lead">Use this when your center enrols a candidate directly
+      (e.g. a walk-in without their own device). The record appears in your
+      dashboard immediately, and the generated ID/password should be shared
+      with the candidate so they can log in themselves.</p>
+
+    <div class="notice">
+      Consent: confirm the candidate has agreed that their details, course
+      progress and employment outcome may be tracked by this center and the
+      program administrator, before submitting this form.
+    </div>
+
+    <form id="regForm" class="card">
+      <fieldset>
+        <legend>Personal details</legend>
+        <div class="field">
+          <label for="name">Full name</label>
+          <input id="name" required placeholder="e.g. Rohan Deshmukh" />
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="dob">Date of birth</label>
+            <input id="dob" type="date" required />
+          </div>
+          <div class="field">
+            <label for="gender">Gender</label>
+            <select id="gender" required>
+              <option value="">Select</option>
+              <option>Male</option><option>Female</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="address">Address</label>
+          <input id="address" required placeholder="Village/Town, District, State" />
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" required placeholder="you@example.com" />
+          </div>
+          <div class="field">
+            <label for="phone">Phone number</label>
+            <input id="phone" required maxlength="10" placeholder="10-digit mobile" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="category">Social category</label>
+          <select id="category" required>
+            <option value="">Select</option>
+            <option>General</option><option>OBC</option><option>SC</option><option>ST</option><option>EWS</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Aadhaar verification</legend>
+        <div class="field">
+          <label for="aadhaar">Aadhaar number</label>
+          <input id="aadhaar" maxlength="12" placeholder="12-digit Aadhaar number" />
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" id="sendOtpBtn">Send OTP</button>
+        <div id="otpRow" style="display:none;margin-top:14px">
+          <div class="field">
+            <label for="otp">Enter OTP</label>
+            <input id="otp" maxlength="6" placeholder="6-digit OTP" />
+            <p class="hint">Demo OTP for this prototype: <b>000000</b></p>
+          </div>
+          <button type="button" class="btn btn-amber btn-sm" id="verifyOtpBtn">Verify Aadhaar</button>
+        </div>
+        <p id="aadhaarStatus" class="hint"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>DigiLocker linking</legend>
+        <p class="hint" style="margin-top:-4px">Required alongside Aadhaar to generate the candidate's Golden ID.</p>
+        <button type="button" class="btn btn-outline btn-sm" id="linkDigilockerBtn" disabled>Link DigiLocker</button>
+        <p id="digilockerStatus" class="hint"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Course &amp; training center</legend>
+        <div class="field">
+          <label>Training center</label>
+          <input id="centerDisplay" disabled />
+        </div>
+        <div class="field">
+          <label for="course">Course</label>
+          <select id="course" required></select>
+        </div>
+      </fieldset>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Register Candidate</button>
+      </div>
+      <p class="hint" id="blockedHint">Verify Aadhaar to enable registration.</p>
+    </form>
+  </div>
+
+  <div id="successView" style="display:none">
+    <div class="eyebrow">Registration complete</div>
+    <h1>Candidate added to the record</h1>
+    <p class="lead">Share these credentials with the candidate so they can log in and self-report their own progress.</p>
+
+    <div class="id-card" id="idCardOut"></div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Login credentials</h3>
+      <p style="font-size:15px">Trainee ID: <b id="outId"></b></p>
+      <p style="font-size:15px">Password: <b id="outPass"></b></p>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="dashboard.html">View in Dashboard</a>
+        <button class="btn btn-outline" id="addAnotherBtn" type="button">Register Another</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="site">Prototype only — Aadhaar verification and OTP delivery are simulated.</footer>
+
+<script src="../assets/app.js"></script>
+<script>
+  const myCenterCode = localStorage.getItem(TC_SESSION_KEY);
+  if (!myCenterCode) window.location.href = 'login.html';
+  document.getElementById('logoutLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.removeItem(TC_SESSION_KEY);
+    window.location.href = '../index.html';
+  });
+
+  const myCenter = centerByCode(myCenterCode);
+  document.getElementById('centerDisplay').value = `${myCenter.name} (${myCenter.district}, ${myCenter.state})`;
+
+  const courseSel = document.getElementById('course');
+  COURSES.forEach(c => courseSel.add(new Option(c.name, c.code)));
+
+  let aadhaarVerified = false;
+  let aadhaarMasked = "";
+  let digilockerLinked = false;
+  let digilockerId = "";
+
+  document.getElementById('sendOtpBtn').addEventListener('click', () => {
+    const val = document.getElementById('aadhaar').value.trim();
+    const status = document.getElementById('aadhaarStatus');
+    if (!/^\d{12}$/.test(val)) {
+      status.textContent = "Enter a valid 12-digit Aadhaar number first.";
+      status.style.color = "var(--red)";
+      return;
+    }
+    document.getElementById('otpRow').style.display = 'block';
+    status.textContent = "OTP sent to the candidate's Aadhaar-linked mobile number (simulated).";
+    status.style.color = "var(--muted)";
+  });
+
+  document.getElementById('verifyOtpBtn').addEventListener('click', () => {
+    const otp = document.getElementById('otp').value.trim();
+    const aadhaar = document.getElementById('aadhaar').value.trim();
+    const status = document.getElementById('aadhaarStatus');
+    if (otp !== DEMO_OTP) {
+      status.textContent = "Incorrect OTP. Use 000000 for this demo.";
+      status.style.color = "var(--red)";
+      return;
+    }
+    aadhaarVerified = true;
+    aadhaarMasked = maskAadhaar(aadhaar);
+    status.textContent = `Aadhaar verified — ${aadhaarMasked}`;
+    status.style.color = "var(--green)";
+    document.getElementById('linkDigilockerBtn').disabled = false;
+  });
+
+  document.getElementById('linkDigilockerBtn').addEventListener('click', () => {
+    digilockerId = mockDigilockerLink();
+    digilockerLinked = true;
+    const status = document.getElementById('digilockerStatus');
+    status.textContent = `DigiLocker linked — identity reference ${digilockerId}`;
+    status.style.color = "var(--green)";
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('blockedHint').style.display = 'none';
+  });
+
+  document.getElementById('regForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!aadhaarVerified || !digilockerLinked) return;
+
+    const centerCode = myCenterCode;
+    const courseCode = courseSel.value;
+    const id = generateTraineeId(centerCode, courseCode);
+    const password = randomPassword();
+    const enrollDate = new Date().toISOString().slice(0,10);
+
+    const record = {
+      id, password,
+      name: document.getElementById('name').value.trim(),
+      address: document.getElementById('address').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      ipAddress: fakeIp(),
+      dob: document.getElementById('dob').value,
+      gender: document.getElementById('gender').value,
+      category: document.getElementById('category').value,
+      aadhaarVerified: true,
+      aadhaarMasked,
+      digilockerId,
+      courseCode, centerCode,
+      completionYear: String(new Date().getFullYear()),
+      enrollDate,
+      assessmentStatus: "Pending",
+      assessmentScore: null,
+      certificateIssued: false,
+      finishedCourses: [],
+      ongoingCourses: [{ code: courseCode, enrolledOn: enrollDate, progressPct: 0 }],
+      employmentStatus: "Not Placed",
+      employer: "",
+      monthlyWage: 0,
+      employmentVerified: false,
+      lastFollowup: enrollDate,
+      checkpointUpdates: {},
+      consentGiven: true,
+      registeredByAdmin: true,
+    };
+
+    const list = getCandidates();
+    list.push(record);
+    saveCandidates(list);
+
+    document.getElementById('idCardOut').innerHTML = `
+      <div class="id-eyebrow">Golden ID</div>
+      <div class="id-num">${id}</div>
+      <div class="id-row"><span>Name</span><b>${record.name}</b></div>
+      <div class="id-row"><span>Course</span><b>${courseName(courseCode)}</b></div>
+      <div class="id-row"><span>Training Center</span><b>${centerName(centerCode)}</b></div>
+      <div class="id-row"><span>Aadhaar</span><b>Verified ✓</b></div>
+      <div class="id-row"><span>DigiLocker</span><b>${digilockerId} ✓</b></div>
+    `;
+    document.getElementById('outId').textContent = id;
+    document.getElementById('outPass').textContent = password;
+
+    document.getElementById('formView').style.display = 'none';
+    document.getElementById('successView').style.display = 'block';
+    window.scrollTo(0,0);
+  });
+
+  document.getElementById('addAnotherBtn').addEventListener('click', () => {
+    window.location.reload();
+  });
+</script>
+</body>
+</html>

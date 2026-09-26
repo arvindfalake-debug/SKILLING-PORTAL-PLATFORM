@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fraud Watch — Policy Maker</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="../index.html" style="color:#fff"><div class="mark">SK</div> Skilling Outcomes Portal</a>
+  <nav><a href="dashboard.html">Dashboard</a><a href="funding-epfo.html">Funding &amp; EPFO</a><a href="#" id="logoutLink">Logout</a></nav>
+</div>
+
+<div class="wrap">
+  <div class="eyebrow">Government · Data Integrity</div>
+  <h1>Fraud &amp; duplicate-registration watch</h1>
+  <p class="lead" style="max-width:640px">
+    Ghost enrolments are a common way training funds get siphoned — many "different"
+    candidates registered from the same phone number or the same device/IP look
+    identical on paper but not underneath. This automatically clusters candidates
+    who share a phone number or an IP address so an admin can investigate before
+    certifying or releasing funds for them.
+  </p>
+
+  <div class="notice amber" style="max-width:640px">
+    Demo only — a phone number is illustrative here, and in production this would
+    also weigh Aadhaar-linked device signals, registration timing patterns and
+    biometric attendance mismatches, not phone/IP alone.
+  </div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3>🚩 Same phone number, multiple "different" candidates</h3>
+    <p class="hint" style="margin-top:-4px">Sorted by cluster size, largest first.</p>
+    <div id="phoneGroups"></div>
+  </div>
+
+  <div class="card">
+    <h3>🚩 Same IP address / device, multiple registrations</h3>
+    <p class="hint" style="margin-top:-4px">Sorted by cluster size, largest first.</p>
+    <div id="ipGroups"></div>
+  </div>
+</div>
+
+<footer class="site">Prototype only — phone/IP values here are simulated, not read from a real network request.</footer>
+
+<script src="../assets/app.js"></script>
+<script>
+  if (!localStorage.getItem(PM_SESSION_KEY)) window.location.href = 'login.html';
+  document.getElementById('logoutLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.removeItem(PM_SESSION_KEY);
+    window.location.href = '../index.html';
+  });
+
+  function groupCard(group, field) {
+    const rows = group.candidates.map(c => `
+      <tr>
+        <td><b>${c.id}</b></td>
+        <td>${c.name}</td>
+        <td>${courseName(c.courseCode)}</td>
+        <td>${centerName(c.centerCode)}</td>
+        <td>${c.completionYear}</td>
+      </tr>`).join('');
+    return `
+      <div class="card" style="margin-bottom:12px;border-color:#EAD3B0;background:#FFFBF5">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <div>
+            <span class="badge badge-red">${group.candidates.length} candidates</span>
+            <b style="margin-left:8px">${field}: ${group.value}</b>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Trainee ID</th><th>Name</th><th>Course</th><th>Center</th><th>Year</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  function render() {
+    const list = getCandidates();
+    const phoneGroups = findDuplicateGroups(list, 'phone');
+    const ipGroups = findDuplicateGroups(list, 'ipAddress');
+    const flaggedIds = new Set([
+      ...phoneGroups.flatMap(g => g.candidates.map(c => c.id)),
+      ...ipGroups.flatMap(g => g.candidates.map(c => c.id)),
+    ]);
+
+    document.getElementById('statGrid').innerHTML = `
+      <div class="stat"><div class="label">Flagged phone clusters</div><div class="value">${phoneGroups.length}</div><div class="sub">shared-number groups found</div></div>
+      <div class="stat"><div class="label">Flagged IP clusters</div><div class="value">${ipGroups.length}</div><div class="sub">shared-device groups found</div></div>
+      <div class="stat"><div class="label">Candidates flagged</div><div class="value">${flaggedIds.size}</div><div class="sub">out of ${list.length} total records</div></div>
+    `;
+
+    document.getElementById('phoneGroups').innerHTML = phoneGroups.length
+      ? phoneGroups.map(g => groupCard(g, 'Phone')).join('')
+      : `<p class="muted small">No duplicate phone numbers found.</p>`;
+
+    document.getElementById('ipGroups').innerHTML = ipGroups.length
+      ? ipGroups.map(g => groupCard(g, 'IP address')).join('')
+      : `<p class="muted small">No duplicate IP addresses found.</p>`;
+  }
+
+  render();
+</script>
+</body>
+</html>

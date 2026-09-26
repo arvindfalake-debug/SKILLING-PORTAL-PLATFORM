@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Policy Maker Dashboard — Skilling Outcomes Portal</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="../index.html" style="color:#fff"><div class="mark">SK</div> Skilling Outcomes Portal</a>
+  <nav><a href="fraud-detection.html">Fraud Watch</a><a href="funding-epfo.html">Funding &amp; EPFO</a><a href="#" id="logoutLink">Logout</a></nav>
+</div>
+
+<div class="wrap">
+  <div class="eyebrow">Government · Policy Maker</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+    <div>
+      <h1>Outcome tracking overview</h1>
+      <p class="lead" style="margin-bottom:24px">All training centers, in one place. Click any bar to filter the candidate list below by that segment.</p>
+    </div>
+  </div>
+
+  <div class="stat-grid" id="statGrid"></div>
+
+  <div class="grid-2" style="margin-bottom:24px">
+    <div class="card">
+      <h3>Employment status distribution</h3>
+      <div class="barlist" id="empChart"></div>
+    </div>
+    <div class="card">
+      <h3>Center auditing <span class="hint">(performance rating by placement rate)</span></h3>
+      <div class="barlist" id="providerChart"></div>
+    </div>
+    <div class="card">
+      <h3>District performance <span class="hint">(placement rate)</span></h3>
+      <div class="barlist" id="districtChart"></div>
+    </div>
+    <div class="card">
+      <h3>Major skill gaps <span class="hint">(lowest placement rate by course)</span></h3>
+      <div class="barlist" id="gapChart"></div>
+    </div>
+    <div class="card">
+      <h3>Demographic distribution <span class="hint">(gender &amp; category)</span></h3>
+      <p class="small" style="margin:4px 0 6px"><b style="color:var(--ink)">Gender</b></p>
+      <div id="genderChart"></div>
+      <p class="small" style="margin:14px 0 6px"><b style="color:var(--ink)">Category</b></p>
+      <div id="categoryChart"></div>
+    </div>
+    <div class="card">
+      <h3>Unemployment reasons <span class="hint">(illustrative — preview of a future AI classifier)</span></h3>
+      <div class="barlist" id="reasonChart"></div>
+    </div>
+  </div>
+
+  <h2>Candidate records</h2>
+  <div class="filters" id="filters">
+    <div class="field"><label>State</label>
+      <select id="f_state"><option value="">All</option></select>
+    </div>
+    <div class="field"><label>District</label>
+      <select id="f_district"><option value="">All</option></select>
+    </div>
+    <div class="field"><label>Training provider</label>
+      <select id="f_center"><option value="">All</option></select>
+    </div>
+    <div class="field"><label>Course</label>
+      <select id="f_course"><option value="">All</option></select>
+    </div>
+    <div class="field"><label>Gender</label>
+      <select id="f_gender"><option value="">All</option></select>
+    </div>
+    <div class="field"><label>Age band</label>
+      <select id="f_age"><option value="">All</option></select>
+    </div>
+    <div class="field"><label>Social category</label>
+      <select id="f_category"><option value="">All</option></select>
+    </div>
+    <div class="field"><label>Completion year</label>
+      <select id="f_year"><option value="">All</option></select>
+    </div>
+    <div class="field"><label>Employment status</label>
+      <select id="f_emp"><option value="">All</option></select>
+    </div>
+    <div class="field" style="align-self:end">
+      <button class="btn btn-outline btn-sm" id="clearFilters" type="button">Clear filters</button>
+    </div>
+  </div>
+
+  <p class="hint" id="countLine" style="margin-top:0"></p>
+
+  <div class="table-wrap" id="tableAnchor">
+    <table>
+      <thead>
+        <tr>
+          <th>Trainee ID</th><th>Name</th><th>Course</th><th>Provider</th><th>District</th>
+          <th>Completion</th><th>Employment status</th><th>Verified</th><th>Wage (₹)</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- detail / update modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <button class="close" id="modalClose" aria-label="Close">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<footer class="site">Prototype only — all data is demo/seed data stored in this browser.</footer>
+
+<script src="../assets/app.js"></script>
+<script>
+  if (!localStorage.getItem(PM_SESSION_KEY)) window.location.href = 'login.html';
+  document.getElementById('logoutLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.removeItem(PM_SESSION_KEY);
+    window.location.href = '../index.html';
+  });
+
+  const filterIds = ['f_state','f_district','f_center','f_course','f_gender','f_age','f_category','f_year','f_emp'];
+
+  function populateFilterOptions() {
+    const states = [...new Set(CENTERS.map(c => c.state))];
+    const districts = [...new Set(CENTERS.map(c => c.district))];
+    const years = [...new Set(getCandidates().map(c => c.completionYear))].sort();
+    fill('f_state', states);
+    fill('f_district', districts);
+    fill('f_center', CENTERS.map(c => [c.code, c.name]));
+    fill('f_course', COURSES.map(c => [c.code, c.name]));
+    fill('f_gender', GENDERS);
+    fill('f_age', ["Under 20","20-25","26-35","36-45","46+"]);
+    fill('f_category', CATEGORIES);
+    fill('f_year', years);
+    fill('f_emp', EMPLOYMENT_STATUSES);
+  }
+  function fill(id, items) {
+    const sel = document.getElementById(id);
+    items.forEach(item => {
+      if (Array.isArray(item)) sel.add(new Option(item[1], item[0]));
+      else sel.add(new Option(item, item));
+    });
+  }
+
+  function currentFilters() {
+    const f = {};
+    filterIds.forEach(id => { f[id] = document.getElementById(id).value; });
+    return f;
+  }
+
+  function applyFilters(list, f) {
+    return list.filter(c => {
+      const center = centerByCode(c.centerCode);
+      if (f.f_state && center.state !== f.f_state) return false;
+      if (f.f_district && center.district !== f.f_district) return false;
+      if (f.f_center && c.centerCode !== f.f_center) return false;
+      if (f.f_course && c.courseCode !== f.f_course) return false;
+      if (f.f_gender && c.gender !== f.f_gender) return false;
+      if (f.f_age && ageBand(ageFromDob(c.dob)) !== f.f_age) return false;
+      if (f.f_category && c.category !== f.f_category) return false;
+      if (f.f_year && c.completionYear !== f.f_year) return false;
+      if (f.f_emp && c.employmentStatus !== f.f_emp) return false;
+      return true;
+    });
+  }
+
+  function badge(text, kind) { return `<span class="badge badge-${kind}">${text}</span>`; }
+
+  function renderStats(list) {
+    const s = computeStats(list);
+    const cards = [
+      ['Employment rate', s.employmentRate + '%', 'of tracked candidates placed'],
+      ['Avg. monthly wage', '₹' + s.avgWage.toLocaleString('en-IN'), 'among placed candidates'],
+      ['90-day retention', s.retentionRate + '%', 'of placed candidates still active at 90+ days'],
+      ['Verified outcomes', s.verifiedOutcomes, 'confirmed by email/SMS/employer check'],
+      ['Pending follow-ups', s.pendingFollowups, 'awaiting outcome verification'],
+      ['Unreachable trainees', s.unreachable, 'no response after repeated follow-up'],
+      ['Total candidates', s.total, 'in current filtered view'],
+      ['Providers tracked', CENTERS.length, 'training centers on this portal'],
+      ['Courses tracked', COURSES.length, 'active course offerings'],
+    ];
+    document.getElementById('statGrid').innerHTML = cards.map(([label,val,sub]) => `
+      <div class="stat"><div class="label">${label}</div><div class="value">${val}</div><div class="sub">${sub}</div></div>
+    `).join('');
+  }
+
+  function barRow(name, pct, count, onClickAttr, amber) {
+    return `
+      <div class="bar-row">
+        <div class="name">${name}</div>
+        <button class="bar-track" type="button" ${onClickAttr} title="Click to view these ${count} trainees">
+          <div class="bar-fill ${amber ? 'amber' : ''}" style="width:${Math.max(pct,3)}%"></div>
+        </button>
+        <div class="pct">${pct}%</div>
+      </div>`;
+  }
+
+  function renderCharts(list) {
+    // employment distribution
+    const empCounts = EMPLOYMENT_STATUSES.map(s => ({ s, n: list.filter(c => c.employmentStatus === s).length }));
+    const maxEmp = Math.max(1, ...empCounts.map(e => e.n));
+    document.getElementById('empChart').innerHTML = empCounts.map(e =>
+      barRow(e.s, Math.round((e.n / maxEmp) * 100), e.n, `data-jump-emp="${e.s}"`, false)
+    ).join('');
+
+    const providers = providerPerformance(list);
+    document.getElementById('providerChart').innerHTML = providers.map(p =>
+      barRow(p.name, p.rate, p.total, `data-jump-center="${p.code}"`, true)
+    ).join('');
+
+    const districts = districtPerformance(list);
+    document.getElementById('districtChart').innerHTML = districts.map(d =>
+      barRow(d.district, d.rate, d.total, `data-jump-district="${d.district}"`, false)
+    ).join('');
+
+    const gaps = skillGaps(list);
+    document.getElementById('gapChart').innerHTML = gaps.map(g =>
+      barRow(g.name, g.rate, g.total, `data-jump-course="${g.code}"`, true)
+    ).join('');
+
+    const d = demographics(list);
+    const genderMax = Math.max(1, ...d.byGender.map(g => g.count));
+    document.getElementById('genderChart').innerHTML = d.byGender.map(g =>
+      barRow(g.label, Math.round((g.count / genderMax) * 100), g.count, '', false)
+    ).join('');
+    const catMax = Math.max(1, ...d.byCategory.map(c => c.count));
+    document.getElementById('categoryChart').innerHTML = d.byCategory.map(c =>
+      barRow(c.label, Math.round((c.count / catMax) * 100), c.count, '', false)
+    ).join('');
+
+    const reasonMax = Math.max(1, ...UNEMPLOYMENT_REASONS_MOCK.map(r => r.value));
+    document.getElementById('reasonChart').innerHTML = UNEMPLOYMENT_REASONS_MOCK.map(r =>
+      barRow(r.reason, Math.round((r.value / reasonMax) * 100), r.value, '', true)
+    ).join('');
+
+    document.querySelectorAll('[data-jump-emp]').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('f_emp').value = b.dataset.jumpEmp; refresh(true);
+    }));
+    document.querySelectorAll('[data-jump-center]').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('f_center').value = b.dataset.jumpCenter; refresh(true);
+    }));
+    document.querySelectorAll('[data-jump-district]').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('f_district').value = b.dataset.jumpDistrict; refresh(true);
+    }));
+    document.querySelectorAll('[data-jump-course]').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('f_course').value = b.dataset.jumpCourse; refresh(true);
+    }));
+  }
+
+  function renderTable(list) {
+    document.getElementById('countLine').textContent = `${list.length} candidate${list.length === 1 ? '' : 's'} match the current filters.`;
+    document.getElementById('tbody').innerHTML = list.map(c => {
+      const center = centerByCode(c.centerCode);
+      return `
+      <tr class="clickable" data-id="${c.id}">
+        <td><b>${c.id}</b></td>
+        <td>${c.name}</td>
+        <td>${courseName(c.courseCode)}</td>
+        <td>${center.name}</td>
+        <td>${center.district}</td>
+        <td>${c.completionYear}</td>
+        <td>${badge(c.employmentStatus, isPlaced(c.employmentStatus) ? 'green' : (c.employmentStatus === 'Unreachable' ? 'red' : 'gray'))}</td>
+        <td>${c.employmentVerified ? badge('Verified','green') : badge('Unverified','amber')}</td>
+        <td>${c.monthlyWage ? c.monthlyWage.toLocaleString('en-IN') : '—'}</td>
+      </tr>`;
+    }).join('');
+    document.querySelectorAll('#tbody tr').forEach(row => {
+      row.addEventListener('click', () => openModal(row.dataset.id));
+    });
+  }
+
+  function refresh(scrollToTable) {
+    const list = applyFilters(getCandidates(), currentFilters());
+    renderStats(list);
+    renderCharts(list);
+    renderTable(list);
+    if (scrollToTable) document.getElementById('tableAnchor').scrollIntoView({behavior:'smooth'});
+  }
+
+  filterIds.forEach(id => document.getElementById(id).addEventListener('change', () => refresh(false)));
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    filterIds.forEach(id => document.getElementById(id).value = '');
+    refresh(false);
+  });
+
+  /* ---------------- modal ---------------- */
+  function openModal(id) {
+    const c = findCandidate(id);
+    if (!c) return;
+    const center = centerByCode(c.centerCode);
+    document.getElementById('modalBody').innerHTML = `
+      <div class="eyebrow">${c.id}</div>
+      <h2>${c.name}</h2>
+      <p class="small muted">${center.name} · ${courseName(c.courseCode)} · Completion ${c.completionYear}</p>
+      <hr class="rule" />
+      <div class="grid-2">
+        <p class="small">District / State<br><b>${center.district}, ${center.state}</b></p>
+        <p class="small">Gender / Category<br><b>${c.gender} · ${c.category}</b></p>
+        <p class="small">Assessment<br><b>${c.assessmentStatus}${c.assessmentScore ? ' (' + c.assessmentScore + '/100)' : ''}</b></p>
+        <p class="small">Certificate<br><b>${c.certificateIssued ? 'Issued' : 'Not yet issued'}</b></p>
+      </div>
+      <hr class="rule" />
+      <h3>Employment outcome</h3>
+      <p class="small">Status<br><b>${c.employmentStatus}</b> ${c.employmentVerified ? badge('Verified','green') : badge('Unverified','amber')}</p>
+      ${c.employer ? `<p class="small">Employer<br><b>${c.employer}</b></p>` : ''}
+      ${c.monthlyWage ? `<p class="small">Monthly wage<br><b>₹${c.monthlyWage.toLocaleString('en-IN')}</b></p>` : ''}
+      ${c.lastContactMethod ? `<p class="small">Last verified via<br><b>${c.lastContactMethod} on ${c.lastContactDate}</b> — "${c.lastContactNote || ''}"</p>` : ''}
+      <p class="hint" style="margin-top:14px">This view is read-only for policy-maker accounts — employment records are updated by the training center after contacting the candidate directly.</p>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" id="m_cancel" type="button">Close</button>
+      </div>
+    `;
+    document.getElementById('m_cancel').addEventListener('click', closeModal);
+    document.getElementById('modalBackdrop').classList.add('open');
+  }
+  function closeModal() { document.getElementById('modalBackdrop').classList.remove('open'); }
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modalBackdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'modalBackdrop') closeModal();
+  });
+
+  populateFilterOptions();
+  refresh(false);
+</script>
+</body>
+</html>

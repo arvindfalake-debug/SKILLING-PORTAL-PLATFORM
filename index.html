@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Skilling Outcomes Portal — Prototype</title>
+<link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><div class="mark">SK</div> Skilling Outcomes Portal</div>
+  <div class="tag">Prototype for SIH — training center &amp; candidate demo</div>
+</div>
+
+<div class="wrap">
+  <div class="landing-hero">
+    <div>
+      <div class="eyebrow">Longitudinal Outcome Tracking</div>
+      <h1>One record, from enrolment to employment.</h1>
+      <p class="lead">
+        Government training programmes track attendance and certificates well —
+        but lose the trail the moment training ends. This prototype gives every
+        candidate a single Golden ID that follows them through course
+        completion and into their employment outcome, so training centers and
+        program administrators can finally see what happened after the course.
+      </p>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="candidate/register.html">Register as a Candidate</a>
+        <a class="btn btn-outline" href="training-center/login.html">Training Center Login</a>
+        <a class="btn btn-outline" href="policy-maker/login.html">Policy Maker Login</a>
+      </div>
+    </div>
+    <div class="id-card">
+      <div class="id-eyebrow">Golden ID</div>
+      <div class="id-num">SKN26AIML007</div>
+      <div class="id-row"><span>Name</span><b>Demo Candidate</b></div>
+      <div class="id-row"><span>Course</span><b>AI &amp; Machine Learning</b></div>
+      <div class="id-row"><span>Training Center</span><b>SKNSIT Lonavala</b></div>
+      <div class="id-row"><span>Aadhaar</span><b>Verified ✓</b></div>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <h2>Three ways in</h2>
+  <p class="lead" style="margin-top:0">Candidates, training centers and the government each use a separate, role-based login.</p>
+
+  <div class="grid-3">
+    <div class="role-card">
+      <div class="icon">🧑‍🎓</div>
+      <h3>Candidate</h3>
+      <p class="muted small">
+        Register once with your personal details and Aadhaar verification, get your
+        Golden ID, and track your own courses, certificates, employment status —
+        plus a suggestion on which jobs to target based on your course.
+      </p>
+      <div class="btn-row">
+        <a class="btn btn-primary btn-sm" href="candidate/register.html">Register</a>
+        <a class="btn btn-outline btn-sm" href="candidate/login.html">Login</a>
+      </div>
+    </div>
+    <div class="role-card">
+      <div class="icon">🏫</div>
+      <h3>Training Center</h3>
+      <p class="muted small">
+        Enroll candidates, view only your own center's candidates, and update
+        an employment outcome only after logging a real call or email with the
+        candidate — no status can be marked verified without that contact.
+      </p>
+      <div class="btn-row">
+        <a class="btn btn-primary btn-sm" href="training-center/login.html">Training Center Login</a>
+      </div>
+      <p class="hint">Demo — ID <b>TC-SKN</b>, OTP <b>000000</b> (see login page for all three centers)</p>
+    </div>
+    <div class="role-card">
+      <div class="icon">🏛️</div>
+      <h3>Policy Maker</h3>
+      <p class="muted small">
+        See every training center's data in one place — employment rate, wages,
+        provider comparison, district and skill-gap charts, fraud watch and
+        funding transparency. View-only, no editing.
+      </p>
+      <div class="btn-row">
+        <a class="btn btn-primary btn-sm" href="policy-maker/login.html">Policy Maker Login</a>
+      </div>
+      <p class="hint">Demo credentials — ID <b>GOV-POLICY-01</b>, OTP <b>000000</b></p>
+    </div>
+  </div>
+</div>
+
+<footer class="site">Prototype only — no real Aadhaar, SMS or email integration. See README for the production architecture.</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
